@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
-import pandas, os, datetime
- 
+import os, datetime
+import pandas
+from matplotlib import pyplot
+
+pyplot.ion() #set up interactive plotting
 datadir='/home/aaron/work/phd/3ddts/SN411049/data/full data set/MammothKnitting/channel 4/2013/jan/'
 
 def read_dts_dir(datadir, channel=4):
@@ -19,5 +22,17 @@ def read_dts_dir(datadir, channel=4):
                 # first iteration
                 data = pandas.DataFrame(data_for_timestamp.ix[:,0],columns=[timestamp])
             print("finished reading in " + filepath)
+    data.sort(axis=1, inplace=True)
     return data
 
+def plot_dts(dts_dataframe, min_dist=None, max_dist=None, min_time=None, max_time=None):
+    plotax = pyplot.axes()
+    myplot = plotax.pcolorfast(dts_dataframe.ix[min_dist:max_dist,min_time:max_time])
+    pyplot.colorbar(myplot, ax=plotax)
+    pyplot.show()
+
+plot_dts(dts_dataframe = read_dts_dir(datadir),
+         min_dist = 300,
+         max_dist = 600,
+         min_time = '2013-01-03 13:31:07',
+         max_time = '2013-01-03 13:31:07')
