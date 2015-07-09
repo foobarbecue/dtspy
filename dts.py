@@ -6,7 +6,7 @@ from matplotlib import pyplot
 
 pyplot.ion() #set up interactive plotting
 
-def read_dts_dirs(datadirs, ddf_column=0):
+def read_dts_dirs(datadirs, ddf_column=0, channel=1):
     for datadir in datadirs:
         for filepath in os.listdir(datadir):
             if filepath.endswith('.ddf'):
@@ -27,7 +27,7 @@ def read_dts_dirs(datadirs, ddf_column=0):
 
 def plot_dts(dts_dataframe, min_dist=None, max_dist=None, min_time=None, max_time=None):
     plotax = pyplot.axes()
-    myplot = plotax.pcolorfast(dts_dataframe.ix[min_dist:max_dist,min_time:max_time])
+    myplot = plotax.pcolorfast(dts_dataframe.ix[min_dist:max_dist,min_time:max_time].astype(dtype=float))
     pyplot.colorbar(myplot, ax=plotax)
     locs, labels = pyplot.xticks()
     #For some reason an extra tick is created beyond the end of the data. Remove it using [:-1].
