@@ -1,3 +1,7 @@
+'''Reads in output files produced by fiber-optic distributed temperature sensing machines and plots them'''
+__author__ = "Aaron Curtis <aarongc@nmt.edu>"
+__version__ = '0.1'
+
 # -*- coding: utf-8 -*-
 import os, datetime
 import pandas
