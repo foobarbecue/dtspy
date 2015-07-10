@@ -7,7 +7,7 @@ import os, datetime
 import pandas
 import numpy
 from matplotlib import pyplot
-import ipdb
+from scipy.io import loadmat
 
 pyplot.ion() #set up interactive plotting
 
@@ -30,16 +30,26 @@ def read_dts_dirs(datadirs, ddf_column=0, channel=1):
     data.sort(axis=1, inplace=True)
     return data
 
+def read_ctemps_mat(filepath):
+    m = loadmat(filepath)
+    times = [datetime.datetime.fromordinal(int(dt))
+             + datetime.timedelta(days=dt%1)
+             - datetime.timedelta(days=366)
+             - datetime.timedelta(hours=5)
+             for dt in m['datetime'][0]]
+    return pandas.DataFrame(m['calTemp'], index=m['distance'][:,0], columns=times)
+
 def plot_dts(dts_dataframe, min_dist=None, max_dist=None, min_time=None, max_time=None):
     plotax = pyplot.axes()
-    myplot = plotax.pcolorfast(dts_dataframe.loc[min_dist:max_dist,min_time:max_time].astype(dtype=float))
+    pltdata = dts_dataframe.loc[min_dist:max_dist,min_time:max_time]
+    myplot = plotax.pcolorfast(pltdata.loc[min_dist:max_dist,min_time:max_time].astype(dtype=float))
     pyplot.colorbar(myplot, ax=plotax)
     xlocs, xlabels = pyplot.xticks()
     #For some reason an extra tick is created beyond the end of the data. Remove it using [:-1].
     xlocs, xlabels = xlocs[:-1], xlabels[:-1]
-    xdates = dts_dataframe.iloc[0,xlocs].index
+    xdates = pltdata.iloc[0,xlocs].index
     ylocs, ylabels = pyplot.yticks()
     ylocs, ylabels = ylocs[:-1], ylabels[:-1]
-    ydists = dts_dataframe.iloc[ylocs,0].index
+    ydists = pltdata.iloc[ylocs,0].index
     pyplot.xticks(xlocs, xdates, rotation=45)
     pyplot.yticks(ylocs, ydists)
