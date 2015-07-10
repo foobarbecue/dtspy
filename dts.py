@@ -7,6 +7,7 @@ import os, datetime
 import pandas
 import numpy
 from matplotlib import pyplot
+import ipdb
 
 pyplot.ion() #set up interactive plotting
 
@@ -31,10 +32,14 @@ def read_dts_dirs(datadirs, ddf_column=0, channel=1):
 
 def plot_dts(dts_dataframe, min_dist=None, max_dist=None, min_time=None, max_time=None):
     plotax = pyplot.axes()
-    myplot = plotax.pcolorfast(dts_dataframe.ix[min_dist:max_dist,min_time:max_time].astype(dtype=float))
+    myplot = plotax.pcolorfast(dts_dataframe.loc[min_dist:max_dist,min_time:max_time].astype(dtype=float))
     pyplot.colorbar(myplot, ax=plotax)
-    locs, labels = pyplot.xticks()
+    xlocs, xlabels = pyplot.xticks()
     #For some reason an extra tick is created beyond the end of the data. Remove it using [:-1].
-    locs, labels = locs[:-1], labels[:-1]
-    xdates = dts_dataframe.iloc[0,locs].index
-    pyplot.xticks(locs, xdates, rotation=45)
+    xlocs, xlabels = xlocs[:-1], xlabels[:-1]
+    xdates = dts_dataframe.iloc[0,xlocs].index
+    ylocs, ylabels = pyplot.yticks()
+    ylocs, ylabels = ylocs[:-1], ylabels[:-1]
+    ydists = dts_dataframe.iloc[ylocs,0].index
+    pyplot.xticks(xlocs, xdates, rotation=45)
+    pyplot.yticks(ylocs, ydists)
