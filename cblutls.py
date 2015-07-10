@@ -5,6 +5,8 @@ __date__ = "2015-07-09"
 __version__ = '0.1'
 
 import pandas, numpy, ipdb
+from matplotlib import pyplot
+from mpl_toolkits.mplot3d import Axes3D
 
 def pts_to_vectors(xyz):
     '''
@@ -31,7 +33,7 @@ def pts_to_vectors(xyz):
     
 def find_2closest_points(xyz_array, xyz_point):
     #Calculate distances between each point in xyz_array and xyz_point
-    dists_squared = numpy.sum((xyz_array-xyz_point[:3])**2, axis='columns')
+    dists_squared = numpy.sum((xyz_array[['x','y','z']]-xyz_point[:3])**2, axis='columns')
     return xyz_array.ix[numpy.argpartition(dists_squared,2)[:2]]
 
 def find_loc_btw_2pts(a, b, dist):
@@ -41,18 +43,12 @@ def find_loc_btw_2pts(a, b, dist):
     ba_normalized = ba/numpy.linalg.norm(ba)
     return a + ba_normalized * dist
 
-def add_dist_control_pts(xyz, control_file):
-    '''
-    control_file: a list of points that represent known cable distance / location pairs,
-    in the format x, y, z, dist
-    '''
-    closest_point_indices = xyz.apply(find_closest_point)
-
 class CableSection():
     '''Represents a section of DTS cable in 3D space'''
     def __init__(self, polyline_filepath, dist_ref_pts_filepath):
         #Read in the output of InnovMetric IMSurvey's "export polyline to text"
         xyz = pandas.read_csv(polyline_filepath, sep=" ", comment="#", names=['x','y','z'])
+        xyz['is_distref'] = False
         
         #Read in cable distance reference points
         dist_ref_pts = pandas.read_csv(dist_ref_pts_filepath, sep=" ", names=['x', 'y', 'z', 'ref_dist'], index_col=False)
@@ -60,9 +56,20 @@ class CableSection():
         for pt in dist_ref_pts.values: #TODO rewrite using apply()
             closest2 = find_2closest_points(xyz, pt)
             #insert point between those two
-            upper = xyz.ix[closest2.index[0]:]
-            lower = xyz.ix[:closest2.index[1]]
+            upper = xyz.ix[:closest2.index[1]]
+            lower = xyz.ix[closest2.index[0]:]
             pt = pandas.DataFrame([pt], columns=['x','y','z','dist']) #TODO this is bad
             pt['is_distref']=True
             xyz = pandas.concat([upper, pt, lower]).reset_index(drop=True)
-        self.xyzijk = pts_to_vectors(xyz)
+        self.data = pts_to_vectors(xyz)
+
+    def plot(self):
+        f = pyplot.figure()
+        ax = Axes3D(f)
+        ax.plot(self.data.x.values, self.data.y.values, self.data.z.values)
+        dr = self.get_distrefs()
+        ax.plot(dr.x.values, dr.y.values, dr.z.values, 'r.')
+        pyplot.show()
+    
+    def get_distrefs(self):
+        return self.data[self.data.is_distref==True]
