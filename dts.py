@@ -21,7 +21,7 @@ def read_dts_dirs(datadirs, ddf_column=0, channel=1):
                     delimiter ='\t')
                 data_for_timestamp.set_index('length (m)', inplace=True)
                 try:
-                    data[timestamp] = data_for_timestamp.ix[:,ddf_column] # would be better to do data_for_timestamp['temperature (°C)'] but the degree symbol is a problem
+                    data[timestamp] = data_for_timestamp.ix[:,ddf_column] # would be better to do data_for_timestamp['temperature (<deg>C)'] but the degree symbol is a problem
                 except NameError:
                     # first iteration
                     data = pandas.DataFrame(data_for_timestamp.ix[:,ddf_column],columns=[timestamp])

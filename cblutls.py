@@ -45,14 +45,25 @@ def find_loc_btw_2pts(a, b, dist):
     return a + ba_normalized * dist
 
 class CableSection():
-    '''Represents a section of DTS cable in 3D space'''
+    '''
+    Represents a section of DTS cable in 3D space
+    
+    Polyline file should be space-delimited, with one header row like:
+        x y z
+        Space-delimited, and should have 1 header row
+        
+    Distance reference file should be space-delimited, with one header row like:
+        x y z cable_dist fiber_dist
+    
+    dts_data is the output of dts.read_dts_dirs
+    '''
     def __init__(self, polyline_filepath, dist_ref_pts_filepath, extrapolate=False, dts_data=None):
         #Read in the output of InnovMetric IMSurvey's "export polyline to text"
-        xyz = pandas.read_csv(polyline_filepath, sep=" ", comment="#", names=['x','y','z'])
+        xyz = pandas.read_csv(polyline_filepath, sep=" ", comment="#")
         xyz['is_distref'] = False
         
         #Read in cable distance reference points
-        dist_ref_pts = pandas.read_csv(dist_ref_pts_filepath, sep=" ", names=['x', 'y', 'z', 'ref_dist'], index_col=False)
+        dist_ref_pts = pandas.read_csv(dist_ref_pts_filepath, sep=" ", index_col=False)
         
         for pt in dist_ref_pts.values: #TODO rewrite using apply()
             closest2 = find_2closest_points(xyz, pt)
