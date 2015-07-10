@@ -18,7 +18,6 @@ def pts_to_vectors(xyz):
     
     #Calculate euclidean distance from previous point
     dists = numpy.sqrt(numpy.sum(ijk**2, axis='columns'))
-    cum_dists = numpy.cumsum(dists)
     
     #Normalize the vectors and rename the columns
     ijk = ijk.divide(dists,axis='rows')
@@ -26,7 +25,9 @@ def pts_to_vectors(xyz):
     
     #Store distance and cumulative distance from first point along cable
     ijk['euc_dist'] = dists
-
+    ijk['cum_euc_dist'] = numpy.cumsum(dists)
+    ijk.cum_euc_dist[0] = 0.
+    
     #Return a rather redundant matrix containing:
     ## xyz, ijk, distances, cumulative distances
     return pandas.concat([xyz, ijk], axis='columns')
@@ -45,7 +46,7 @@ def find_loc_btw_2pts(a, b, dist):
 
 class CableSection():
     '''Represents a section of DTS cable in 3D space'''
-    def __init__(self, polyline_filepath, dist_ref_pts_filepath):
+    def __init__(self, polyline_filepath, dist_ref_pts_filepath, extrapolate=False, dts_data=None):
         #Read in the output of InnovMetric IMSurvey's "export polyline to text"
         xyz = pandas.read_csv(polyline_filepath, sep=" ", comment="#", names=['x','y','z'])
         xyz['is_distref'] = False
@@ -58,10 +59,14 @@ class CableSection():
             #insert point between those two
             upper = xyz.ix[:closest2.index[1]]
             lower = xyz.ix[closest2.index[0]:]
-            pt = pandas.DataFrame([pt], columns=['x','y','z','dist']) #TODO this is bad
+            pt = pandas.DataFrame([pt], columns=['x','y','z','cable_dist']) #TODO this is bad
             pt['is_distref']=True
             xyz = pandas.concat([upper, pt, lower]).reset_index(drop=True)
         self.data = pts_to_vectors(xyz)
+        self.data.set_index('cum_euc_dist', inplace=True)
+        self.interp_dists()
+        if extrapolate:
+            self.extrap_dists()
 
     def plot(self):
         f = pyplot.figure()
@@ -73,3 +78,16 @@ class CableSection():
     
     def get_distrefs(self):
         return self.data[self.data.is_distref==True]
+    
+    def interp_dists(self):
+        '''
+        Add a cable distance for each polyline point, interpolated from the reference distances        
+        TODO: solution for data that's not between two reference sections
+        '''
+        distrefs = self.get_distrefs()
+        #We're using the euclidean distance from TLS polylines as the index
+        self.data.cable_dist = numpy.interp(
+            x = self.data.index.values,
+            xp = distrefs.index.values,
+            fp=distrefs.cable_dist.values,
+            left=numpy.nan, right=numpy.nan)
