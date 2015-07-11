@@ -4,9 +4,9 @@ __author__ = "Aaron Curtis <aarongc@nmt.edu>"
 __date__ = "2015-07-09"
 __version__ = '0.1'
 
-import pandas, numpy
+import pandas, numpy, ipdb
 from scipy.interpolate import InterpolatedUnivariateSpline
-from matplotlib import pyplot
+from matplotlib import pyplot, colors
 from mpl_toolkits.mplot3d import Axes3D
 
 def pts_to_vectors(xyz):
@@ -60,7 +60,7 @@ class CableSection():
     cbl_fbr_b and cbl_fbr_m are the parameters for a linear equation <fbr>=m<cbl>+b that relates cable distance to fiber distance
     '''
     def __init__(self, polyline_filepath, dist_ref_pts_filepath, extrapolate=False, dts_data=None, cbl_fbr_m=None, cbl_fbr_b=None):
-        self.dts_data = dts_data
+        self.dts_data = dts_data.copy()
         
         #Read in the output of InnovMetric IMSurvey's "export polyline to text"
         xyz = pandas.read_csv(polyline_filepath, sep=" ", comment="#")
@@ -99,14 +99,27 @@ class CableSection():
         #TODO check that this doesn't wipe out the fiber dist ref points
         self.data.fiber_dist = self.data.cable_dist*m+b
 
-    def plot(self):
+    def plot_w_mpl(self):
         f = pyplot.figure()
         ax = Axes3D(f)
         ax.plot(self.data.x.values, self.data.y.values, self.data.z.values)
         dr = self.get_distrefs()
         ax.plot(dr.x.values, dr.y.values, dr.z.values, 'r.')
-        #Plot DTS temperatures
-        ax.plot(self.dts_data.x.values, self.dts_data.y.values, self.dts_data.z.values, 'g.')
+        #find the non-nan dts values; i.e. the ones we've located on the polyline
+        dtsnn = self.dts_data[self.dts_data.x.notnull()]
+        #Plot average DTS temperatures
+        time_averaged_dts = dtsnn.drop(['x','y','z'],axis='columns').mean(axis='columns').values
+        time_averaged_dts_normalized = colors.Normalize(
+            min(time_averaged_dts),
+            max(time_averaged_dts))(time_averaged_dts)
+        ax.scatter(
+            dtsnn.x.values,
+            dtsnn.y.values,
+            dtsnn.z.values,
+            marker='.',
+            s=160,
+            edgecolors='face',
+            c=pyplot.cm.jet(time_averaged_dts_normalized))
         pyplot.show()
     
     def get_distrefs(self):
@@ -120,11 +133,4 @@ class CableSection():
         distrefs = self.get_distrefs()
         #Create a spline function cbl_dist = spl(euc_dist)
         spl = InterpolatedUnivariateSpline(distrefs.index.values, distrefs.cable_dist.values, k=1)
-        self.data.cable_dist = spl(self.data.index.values)        
-        
-    def extrap_dists(self):
-        '''
-        Add fiber distances for polyline points that are not between two reference distances.
-        Requires cbl_fbr_m and cbl_fbr_b
-        '''
-        self.data.cable_dist
+        self.data.cable_dist = spl(self.data.index.values)
