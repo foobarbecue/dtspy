@@ -59,6 +59,8 @@ class CableSection():
     cbl_fbr_b and cbl_fbr_m are the parameters for a linear equation <fbr>=m<cbl>+b that relates cable distance to fiber distance
     '''
     def __init__(self, polyline_filepath, dist_ref_pts_filepath, extrapolate=False, dts_data=None, cbl_fbr_m=None, cbl_fbr_b=None):
+        self.dts_data = dts_data
+        
         #Read in the output of InnovMetric IMSurvey's "export polyline to text"
         xyz = pandas.read_csv(polyline_filepath, sep=" ", comment="#")
         xyz['is_distref'] = False
@@ -81,6 +83,16 @@ class CableSection():
             self.extrap_dists()
         if cbl_fbr_m and cbl_fbr_b:
             self.set_fiber_d_frm_cable_d(cbl_fbr_m, cbl_fbr_b)
+            if self.dts_data is not None:
+                #calculate locations of dts points
+                for dim in ['x','y','z']:
+                    #dts_data.index is the cable lengths
+                    self.dts_data[dim] = numpy.interp(
+                        self.dts_data.index.values,
+                        self.data.fiber_dist,
+                        self.data[dim],
+                        left=numpy.nan,
+                        right=numpy.nan)
 
     def set_fiber_d_frm_cable_d(self, m, b):
         #TODO check that this doesn't wipe out the fiber dist ref points
@@ -92,6 +104,7 @@ class CableSection():
         ax.plot(self.data.x.values, self.data.y.values, self.data.z.values)
         dr = self.get_distrefs()
         ax.plot(dr.x.values, dr.y.values, dr.z.values, 'r.')
+        ax.plot(self.dts_data.x.values, self.dts_data.y.values, self.dts_data.z.values, 'g.')
         pyplot.show()
     
     def get_distrefs(self):
