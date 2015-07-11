@@ -50,14 +50,15 @@ class CableSection():
     
     Polyline file should be space-delimited, with one header row like:
         x y z
-        Space-delimited, and should have 1 header row
         
-    Distance reference file should be space-delimited, with one header row like:
-        x y z cable_dist fiber_dist
+    Distance reference file should be space-delimited, NaNs marked as NaN with one header row like:
+        x y z cable_dist fiber_dist description
     
     dts_data is the output of dts.read_dts_dirs
+    
+    cbl_fbr_b and cbl_fbr_m are the parameters for a linear equation <fbr>=m<cbl>+b that relates cable distance to fiber distance
     '''
-    def __init__(self, polyline_filepath, dist_ref_pts_filepath, extrapolate=False, dts_data=None):
+    def __init__(self, polyline_filepath, dist_ref_pts_filepath, extrapolate=False, dts_data=None, cbl_fbr_m=None, cbl_fbr_b=None):
         #Read in the output of InnovMetric IMSurvey's "export polyline to text"
         xyz = pandas.read_csv(polyline_filepath, sep=" ", comment="#")
         xyz['is_distref'] = False
@@ -70,7 +71,7 @@ class CableSection():
             #insert point between those two
             upper = xyz.ix[:closest2.index[1]]
             lower = xyz.ix[closest2.index[0]:]
-            pt = pandas.DataFrame([pt], columns=['x','y','z','cable_dist']) #TODO this is bad
+            pt = pandas.DataFrame([pt], columns=dist_ref_pts.columns)
             pt['is_distref']=True
             xyz = pandas.concat([upper, pt, lower]).reset_index(drop=True)
         self.data = pts_to_vectors(xyz)
@@ -78,6 +79,12 @@ class CableSection():
         self.interp_dists()
         if extrapolate:
             self.extrap_dists()
+        if cbl_fbr_m and cbl_fbr_b:
+            self.set_fiber_d_frm_cable_d(cbl_fbr_m, cbl_fbr_b)
+
+    def set_fiber_d_frm_cable_d(self, m, b):
+        #TODO check that this doesn't wipe out the fiber dist ref points
+        self.data.fiber_dist = self.data.cable_dist*m+b
 
     def plot(self):
         f = pyplot.figure()
