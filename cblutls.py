@@ -4,7 +4,8 @@ __author__ = "Aaron Curtis <aarongc@nmt.edu>"
 __date__ = "2015-07-09"
 __version__ = '0.1'
 
-import pandas, numpy, ipdb
+import pandas, numpy
+from scipy.interpolate import InterpolatedUnivariateSpline
 from matplotlib import pyplot
 from mpl_toolkits.mplot3d import Axes3D
 
@@ -66,7 +67,7 @@ class CableSection():
         xyz['is_distref'] = False
         
         #Read in cable distance reference points
-        dist_ref_pts = pandas.read_csv(dist_ref_pts_filepath, sep=" ", index_col=False)
+        dist_ref_pts = pandas.read_csv(dist_ref_pts_filepath, sep=" ", comment="#", index_col=False)
         
         for pt in dist_ref_pts.values: #TODO rewrite using apply()
             closest2 = find_2closest_points(xyz, pt)
@@ -104,6 +105,7 @@ class CableSection():
         ax.plot(self.data.x.values, self.data.y.values, self.data.z.values)
         dr = self.get_distrefs()
         ax.plot(dr.x.values, dr.y.values, dr.z.values, 'r.')
+        #Plot DTS temperatures
         ax.plot(self.dts_data.x.values, self.dts_data.y.values, self.dts_data.z.values, 'g.')
         pyplot.show()
     
@@ -116,9 +118,13 @@ class CableSection():
         TODO: solution for data that's not between two reference sections
         '''
         distrefs = self.get_distrefs()
-        #We're using the euclidean distance from TLS polylines as the index
-        self.data.cable_dist = numpy.interp(
-            x = self.data.index.values,
-            xp = distrefs.index.values,
-            fp=distrefs.cable_dist.values,
-            left=numpy.nan, right=numpy.nan)
+        #Create a spline function cbl_dist = spl(euc_dist)
+        spl = InterpolatedUnivariateSpline(distrefs.index.values, distrefs.cable_dist.values, k=1)
+        self.data.cable_dist = spl(self.data.index.values)        
+        
+    def extrap_dists(self):
+        '''
+        Add fiber distances for polyline points that are not between two reference distances.
+        Requires cbl_fbr_m and cbl_fbr_b
+        '''
+        self.data.cable_dist
