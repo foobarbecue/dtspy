@@ -148,3 +148,16 @@ class CableSection():
         #Create a spline function cbl_dist = spl(euc_dist)
         spl = InterpolatedUnivariateSpline(distrefs.index.values, distrefs.cable_dist.values, k=1)
         self.data.cable_dist = spl(self.data.index.values)
+
+def interpolate_temperatures(cable_section, grid_step):
+    from pykrige.k3d import Krige3D
+    #Next two lines are also in CableSection.plot_w_mayavi -- refactor if it gets used a third time
+    dtsnn = cable_section.dts_data[cable_section.dts_data.x.notnull()]
+    time_averaged_dts = dtsnn.drop(['x','y','z'],axis='columns').mean(axis='columns').values    
+    k = Krige3D(dtsnn.x.values, dtsnn.y.values, dtsnn.z.values, time_averaged_dts)
+    grid = []
+    for dim in ['x','y','z']:
+        grid.append(numpy.arange(dtsnn[dim].min(), dtsnn[dim].max(), grid_step))
+    ipdb.set_trace()
+    kvals, sigmasq = k.execute('grid',grid[0],grid[1],grid[2])
+    return kvals
