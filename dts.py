@@ -6,12 +6,16 @@ __version__ = '0.1'
 import os, datetime
 import pandas
 import numpy
+import glob2
 from matplotlib import pyplot
 from scipy.io import loadmat
 
 pyplot.ion() #set up interactive plotting
 
-def read_dts_dirs(datadirs, ddf_column=0, channel=1):
+def read_ddf_col(datadirs, ddf_column=0, channel=1):
+    '''
+    Reads a column (temp, Stokes, AntiStokes) from all the .ddf files in all datadirs
+    '''
     for datadir in datadirs:
         for filepath in os.listdir(datadir):
             if filepath.endswith('.ddf'):
@@ -29,6 +33,25 @@ def read_dts_dirs(datadirs, ddf_column=0, channel=1):
                     ref_temps = pandas.DataFrame
     data.sort(axis=1, inplace=True)
     return data
+
+def read_trefs(datadir):
+    '''
+    Reads all .tcd files in datadirs and returns a DataFrame containing all thermistor data
+    '''
+    trefs = []
+    for tcd_filepath in glob2.glob(datadir + '**/*.tcd'):
+        #index_col=False is a workaround to avoid getting
+        #*** NotImplementedError: file structure not yet supported
+        data = pandas.read_csv(
+            tcd_filepath,
+            skiprows = 6,
+            parse_dates = [[0,1]],
+            delimiter ='\t',
+            index_col = False)
+        data = data.set_index(data.columns[0])
+        data.columns=['internal','ext1','ext2']
+        trefs.append(data)
+    return pandas.concat(trefs)
 
 def read_ctemps_mat(filepath):
     m = loadmat(filepath)
@@ -53,3 +76,19 @@ def plot_dts(dts_dataframe, min_dist=None, max_dist=None, min_time=None, max_tim
     ydists = pltdata.iloc[ylocs,0].index
     pyplot.xticks(xlocs, xdates, rotation=45)
     pyplot.yticks(ylocs, ydists)
+
+def read_and_plot_pwrrat(dtsdir, min_dist=None, max_dist=None, min_time=None, max_time=None):
+    '''
+    Read Stokes and AntiStokes columns, then plot 1/(ln(S/AS)).
+    Works on a single directory only as currently written.
+    '''
+    stokes = read_dts_dirs([dtsdir], ddf_column=1).astype(dtype=float)
+    antistokes = read_dts_dirs([dtsdir], ddf_column=2).astype(dtype=float)
+    ratio = 1/numpy.log(stokes/antistokes)
+    plotax = pyplot.axes()
+    myplot = plotax.pcolorfast(ratio.loc[min_dist:max_dist,min_time:max_time])
+    xlocs, xlabels = pyplot.xticks()
+    xlocs, xlabels = xlocs[:-1], xlabels[:-1]
+    xdates = ratio.iloc[0,xlocs].index
+    pyplot.xticks(xlocs, xdates, rotation=45)
+    pyplot.colorbar(myplot, ax=plotax)
