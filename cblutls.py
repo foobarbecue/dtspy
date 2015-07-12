@@ -8,6 +8,10 @@ import pandas, numpy, ipdb
 from scipy.interpolate import InterpolatedUnivariateSpline
 from matplotlib import pyplot, colors
 from mpl_toolkits.mplot3d import Axes3D
+try:
+    from mayavi import mlab
+except:
+    print("Mayavi not found. Fancy plotting will be unavailable.")
 
 def pts_to_vectors(xyz):
     '''
@@ -121,6 +125,16 @@ class CableSection():
             edgecolors='face',
             c=pyplot.cm.jet(time_averaged_dts_normalized))
         pyplot.show()
+
+    def plot_w_mayavi(self):
+        #Plot average DTS temperatures
+        dtsnn = self.dts_data[self.dts_data.x.notnull()]
+        time_averaged_dts = dtsnn.drop(['x','y','z'],axis='columns').mean(axis='columns').values
+        dts_plot = mlab.plot3d(dtsnn.x.values, dtsnn.y.values, dtsnn.z.values, time_averaged_dts)
+        mlab.colorbar(dts_plot)
+
+        dr = self.get_distrefs()
+        mlab.points3d(dr.x.values, dr.y.values, dr.z.values, scale_factor=0.2)
     
     def get_distrefs(self):
         return self.data[self.data.is_distref==True]
