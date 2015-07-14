@@ -4,7 +4,7 @@ __author__ = "Aaron Curtis <aarongc@nmt.edu>"
 __date__ = "2015-07-09"
 __version__ = '0.1'
 
-import pandas, numpy, ipdb
+import pandas, numpy
 from scipy.interpolate import InterpolatedUnivariateSpline
 from matplotlib import pyplot, colors
 from mpl_toolkits.mplot3d import Axes3D
@@ -161,3 +161,15 @@ def interpolate_temperatures(cable_section, grid_step):
     ipdb.set_trace()
     kvals, sigmasq = k.execute('grid',grid[0],grid[1],grid[2])
     return kvals
+
+def find_baths(dts_data, trefs):
+    '''
+    For each thermistor, correlate against all distances and plot the pearson coefficient values.
+    '''
+    tref_results={}
+    for tref_name, tref in trefs.iteritems():
+        results={}
+        for dist, temps in dts_data.iterrows():
+            results.update({dist:tref.corr(temps)})
+        tref_results.update({tref_name:results})
+    return tref_results

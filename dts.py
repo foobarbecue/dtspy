@@ -12,11 +12,11 @@ from scipy.io import loadmat
 
 pyplot.ion() #set up interactive plotting
 
-def read_ddf_col(datadirs, ddf_column=0, channel=1):
+def read_ddf_col(datadir, ddf_column=0, channel=1):
     '''
     Reads a column (temp, Stokes, AntiStokes) from all the .ddf files in all datadirs
     '''
-    for datadir in datadirs:
+    for datadir in glob2.glob(datadir + '**/'):
         for filepath in os.listdir(datadir):
             if filepath.endswith('.ddf'):
                 timestamp = datetime.datetime.strptime(filepath, 'channel ' + str(channel) + ' %Y%m%d %H%M%S 00001.ddf')
@@ -49,7 +49,7 @@ def read_trefs(datadir):
             delimiter ='\t',
             index_col = False)
         data = data.set_index(data.columns[0])
-        data.columns=['internal','ext1','ext2']
+        data.columns=['internal','ext1','ext2'] #necessary because the header row starts with two tab characters and pandas deals with that differently depending on version :-(
         trefs.append(data)
     return pandas.concat(trefs)
 
@@ -63,9 +63,10 @@ def read_ctemps_mat(filepath):
     return pandas.DataFrame(m['calTemp'], index=m['distance'][:,0], columns=times)
 
 def plot_dts(dts_dataframe, min_dist=None, max_dist=None, min_time=None, max_time=None):
+    pyplot.figure()
     plotax = pyplot.axes()
     pltdata = dts_dataframe.loc[min_dist:max_dist,min_time:max_time]
-    myplot = plotax.pcolorfast(pltdata.loc[min_dist:max_dist,min_time:max_time].astype(dtype=float))
+    myplot = plotax.pcolorfast(pltdata.astype(dtype=float))
     pyplot.colorbar(myplot, ax=plotax)
     xlocs, xlabels = pyplot.xticks()
     #For some reason an extra tick is created beyond the end of the data. Remove it using [:-1].
@@ -76,19 +77,15 @@ def plot_dts(dts_dataframe, min_dist=None, max_dist=None, min_time=None, max_tim
     ydists = pltdata.iloc[ylocs,0].index
     pyplot.xticks(xlocs, xdates, rotation=45)
     pyplot.yticks(ylocs, ydists)
+    return pltdata
 
-def read_and_plot_pwrrat(dtsdir, min_dist=None, max_dist=None, min_time=None, max_time=None):
+def read_and_plot_pwrrat(dtsdir, **kwargs):
     '''
     Read Stokes and AntiStokes columns, then plot 1/(ln(S/AS)).
     Works on a single directory only as currently written.
     '''
-    stokes = read_dts_dirs([dtsdir], ddf_column=1).astype(dtype=float)
-    antistokes = read_dts_dirs([dtsdir], ddf_column=2).astype(dtype=float)
+    stokes = read_ddf_col(dtsdir, ddf_column=1).astype(dtype=float)
+    antistokes = read_ddf_col(dtsdir, ddf_column=2).astype(dtype=float)
     ratio = 1/numpy.log(stokes/antistokes)
-    plotax = pyplot.axes()
-    myplot = plotax.pcolorfast(ratio.loc[min_dist:max_dist,min_time:max_time])
-    xlocs, xlabels = pyplot.xticks()
-    xlocs, xlabels = xlocs[:-1], xlabels[:-1]
-    xdates = ratio.iloc[0,xlocs].index
-    pyplot.xticks(xlocs, xdates, rotation=45)
-    pyplot.colorbar(myplot, ax=plotax)
+    ratio_trimmed = plot_dts(ratio, **kwargs)
+    return ratio_trimmed 
