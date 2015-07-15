@@ -49,6 +49,20 @@ def find_loc_btw_2pts(a, b, dist):
     ba_normalized = ba/numpy.linalg.norm(ba)
     return a + ba_normalized * dist
 
+class Cable():
+    '''
+    Represents a DTS cable, made up of CableSections.
+    Polyline files should end in .txt, and distance reference files should end in .dtr.
+    See cblutls.CableSection class for details of file formats.
+    '''
+    def __init__(self, polyline_dirpath, dts_data, **kwargs):
+        self.sections=[]
+        for polyline_filepath in glob2.glob(dirpath + '.txt'):
+            self.sections.append(CableSection(
+                polyline_filepath,
+                polyline_filepath.replace('.txt','.dtr'),
+                **kwargs))
+
 class CableSection():
     '''
     Represents a section of DTS cable in 3D space
