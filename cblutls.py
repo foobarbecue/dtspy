@@ -5,6 +5,7 @@ __date__ = "2015-07-09"
 __version__ = '0.1'
 
 import pandas, numpy
+import glob2
 from scipy.interpolate import InterpolatedUnivariateSpline
 from matplotlib import pyplot, colors
 from mpl_toolkits.mplot3d import Axes3D
@@ -55,9 +56,9 @@ class Cable():
     Polyline files should end in .txt, and distance reference files should end in .dtr.
     See cblutls.CableSection class for details of file formats.
     '''
-    def __init__(self, polyline_dirpath, dts_data, **kwargs):
+    def __init__(self, polyline_dirpath, **kwargs):
         self.sections=[]
-        for polyline_filepath in glob2.glob(dirpath + '.txt'):
+        for polyline_filepath in glob2.glob(polyline_dirpath + '*.txt'):
             self.sections.append(CableSection(
                 polyline_filepath,
                 polyline_filepath.replace('.txt','.dtr'),
@@ -77,7 +78,7 @@ class CableSection():
     
     cbl_fbr_b and cbl_fbr_m are the parameters for a linear equation <fbr>=m<cbl>+b that relates cable distance to fiber distance
     '''
-    def __init__(self, polyline_filepath, dist_ref_pts_filepath, extrapolate=False, dts_data=None, cbl_fbr_m=None, cbl_fbr_b=None):
+    def __init__(self, polyline_filepath, dist_ref_pts_filepath, dts_data=None, cbl_fbr_m=None, cbl_fbr_b=None):
         self.dts_data = dts_data.copy()
         
         #Read in the output of InnovMetric IMSurvey's "export polyline to text"
@@ -85,33 +86,33 @@ class CableSection():
         xyz['is_distref'] = False
         
         #Read in cable distance reference points
-        dist_ref_pts = pandas.read_csv(dist_ref_pts_filepath, sep=" ", comment="#", index_col=False)
+        dist_ref_pts = pandas.read_csv(dist_ref_pts_filepath, sep=" ", comment="#")
         
+        #Insert each distance reference point between the 2 nearest cable polyline points
         for pt in dist_ref_pts.values: #TODO rewrite using apply()
             closest2 = find_2closest_points(xyz, pt)
-            #insert point between those two
             upper = xyz.ix[:closest2.index[1]]
             lower = xyz.ix[closest2.index[0]:]
             pt = pandas.DataFrame([pt], columns=dist_ref_pts.columns)
             pt['is_distref']=True
             xyz = pandas.concat([upper, pt, lower]).reset_index(drop=True)
+
+        #Add i, j, k, euc_dist and cum_euc_dist columns
         self.data = pts_to_vectors(xyz)
         self.data.set_index('cum_euc_dist', inplace=True)
+        
+        #Add fiber distance for each polyline point
         self.interp_dists()
-        if extrapolate:
-            self.extrap_dists()
         if cbl_fbr_m and cbl_fbr_b:
             self.set_fiber_d_frm_cable_d(cbl_fbr_m, cbl_fbr_b)
             if self.dts_data is not None:
                 #calculate locations of dts points
                 for dim in ['x','y','z']:
-                    #dts_data.index is the cable lengths
-                    self.dts_data[dim] = numpy.interp(
-                        self.dts_data.index.values,
-                        self.data.fiber_dist,
-                        self.data[dim],
-                        left=numpy.nan,
-                        right=numpy.nan)
+                    #dts_data.index is the fiber lengths
+                    spl = InterpolatedUnivariateSpline(self.data.fiber_dist.values, self.data[dim].values, k=1)
+                    eval_at = self.dts_data[self.data.fiber_dist.min(): self.data.fiber_dist.max()].index.values
+                    self.dts_data[dim] = numpy.nan
+                    self.dts_data.ix[eval_at,dim] = spl(eval_at)
 
     def set_fiber_d_frm_cable_d(self, m, b):
         #TODO check that this doesn't wipe out the fiber dist ref points
@@ -146,7 +147,6 @@ class CableSection():
         time_averaged_dts = dtsnn.drop(['x','y','z'],axis='columns').mean(axis='columns').values
         dts_plot = mlab.plot3d(dtsnn.x.values, dtsnn.y.values, dtsnn.z.values, time_averaged_dts)
         mlab.colorbar(dts_plot)
-
         dr = self.get_distrefs()
         mlab.points3d(dr.x.values, dr.y.values, dr.z.values, scale_factor=0.2)
     
@@ -159,9 +159,14 @@ class CableSection():
         TODO: solution for data that's not between two reference sections
         '''
         distrefs = self.get_distrefs()
-        #Create a spline function cbl_dist = spl(euc_dist)
-        spl = InterpolatedUnivariateSpline(distrefs.index.values, distrefs.cable_dist.values, k=1)
-        self.data.cable_dist = spl(self.data.index.values)
+        if len(distrefs) > 1:
+            #Create a spline function cbl_dist = spl(euc_dist)
+            spl = InterpolatedUnivariateSpline(distrefs.index.values, distrefs.cable_dist.values, k=1)
+            self.data.cable_dist = spl(self.data.index.values)
+        else:
+            #There's only one distance reference point for this section, so we correct offset but not slope
+            offset = distrefs.cable_dist.values[0] - distrefs.index.values[0]
+            self.data.cable_dist = self.data.index.values + offset
 
 def interpolate_temperatures(cable_section, grid_step):
     from pykrige.k3d import Krige3D
@@ -172,7 +177,6 @@ def interpolate_temperatures(cable_section, grid_step):
     grid = []
     for dim in ['x','y','z']:
         grid.append(numpy.arange(dtsnn[dim].min(), dtsnn[dim].max(), grid_step))
-    ipdb.set_trace()
     kvals, sigmasq = k.execute('grid',grid[0],grid[1],grid[2])
     return kvals
 
