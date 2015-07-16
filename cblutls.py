@@ -80,7 +80,8 @@ class CableSection():
     '''
     def __init__(self, polyline_filepath, dist_ref_pts_filepath, dts_data=None, cbl_fbr_m=None, cbl_fbr_b=None):
         self.dts_data = dts_data.copy()
-        
+        self.polyline_filepath = polyline_filepath
+        self.dist_ref_pts_filepath = dist_ref_pts_filepath
         #Read in the output of InnovMetric IMSurvey's "export polyline to text"
         xyz = pandas.read_csv(polyline_filepath, sep=" ", comment="#")
         xyz['is_distref'] = False
