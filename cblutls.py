@@ -82,9 +82,12 @@ class CableSection():
         self.dts_data = dts_data.copy()
         self.polyline_filepath = polyline_filepath
         self.dist_ref_pts_filepath = dist_ref_pts_filepath
+        
         #Read in the output of InnovMetric IMSurvey's "export polyline to text"
         xyz = pandas.read_csv(polyline_filepath, sep=" ", comment="#")
         xyz['is_distref'] = False
+        #Remove duplicates -- they cause problems later
+        xyz.drop_duplicates(inplace=True)
         
         #Read in cable distance reference points
         dist_ref_pts = pandas.read_csv(dist_ref_pts_filepath, sep=" ", comment="#")
@@ -110,6 +113,7 @@ class CableSection():
                 #calculate locations of dts points
                 for dim in ['x','y','z']:
                     #dts_data.index is the fiber lengths
+                    self.data.sort('fiber_dist',inplace=True)
                     spl = InterpolatedUnivariateSpline(self.data.fiber_dist.values, self.data[dim].values, k=1)
                     eval_at = self.dts_data[self.data.fiber_dist.min(): self.data.fiber_dist.max()].index.values
                     self.dts_data[dim] = numpy.nan
