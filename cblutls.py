@@ -70,7 +70,11 @@ class Cable():
                 f = pyplot.figure()
                 ax = Axes3D(f)
             section.plot_w_mpl(ax)
-        
+            
+    def plot_w_mayavi(self):
+        for section in self.sections:
+            section.plot_w_mayavi(colorbar=False)
+        mlab.colorbar()        
 
 class CableSection():
     '''
@@ -157,12 +161,13 @@ class CableSection():
             c=pyplot.cm.jet(time_averaged_dts_normalized))
         pyplot.show()
 
-    def plot_w_mayavi(self):
+    def plot_w_mayavi(self, colorbar=True):
         #Plot average DTS temperatures
         dtsnn = self.dts_data[self.dts_data.x.notnull()]
         time_averaged_dts = dtsnn.drop(['x','y','z'],axis='columns').mean(axis='columns').values
-        dts_plot = mlab.plot3d(dtsnn.x.values, dtsnn.y.values, dtsnn.z.values, time_averaged_dts)
-        mlab.colorbar(dts_plot)
+        dts_plot = mlab.plot3d(dtsnn.x.values, dtsnn.y.values, dtsnn.z.values, time_averaged_dts, tube_radius=0.1)
+        if colorbar:
+            mlab.colorbar(dts_plot)
         dr = self.get_distrefs()
         mlab.points3d(dr.x.values, dr.y.values, dr.z.values, scale_factor=0.2)
     
