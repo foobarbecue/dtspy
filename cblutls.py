@@ -64,6 +64,14 @@ class Cable():
                 polyline_filepath.replace('.txt','.dtr'),
                 **kwargs))
 
+    def plot_w_mpl(self, ax=None):
+        for section in self.sections:
+            if not ax:
+                f = pyplot.figure()
+                ax = Axes3D(f)
+            section.plot_w_mpl(ax)
+        
+
 class CableSection():
     '''
     Represents a section of DTS cable in 3D space
@@ -77,8 +85,10 @@ class CableSection():
     dts_data is the output of dts.read_dts_dirs
     
     cbl_fbr_b and cbl_fbr_m are the parameters for a linear equation <fbr>=m<cbl>+b that relates cable distance to fiber distance
+    
+    coord_cbl_m is the ratio of the coordinate system units (meters if UTM) to the cable length units (often feet)
     '''
-    def __init__(self, polyline_filepath, dist_ref_pts_filepath, dts_data=None, cbl_fbr_m=None, cbl_fbr_b=None):
+    def __init__(self, polyline_filepath, dist_ref_pts_filepath, dts_data=None, cbl_fbr_m=None, cbl_fbr_b=None, coord_cbl_m=0.3048):
         self.dts_data = dts_data.copy()
         self.polyline_filepath = polyline_filepath
         self.dist_ref_pts_filepath = dist_ref_pts_filepath
@@ -106,7 +116,7 @@ class CableSection():
         self.data.set_index('cum_euc_dist', inplace=True)
         
         #Add fiber distance for each polyline point
-        self.interp_dists()
+        self.interp_dists(coord_cbl_m)
         if cbl_fbr_m and cbl_fbr_b:
             self.set_fiber_d_frm_cable_d(cbl_fbr_m, cbl_fbr_b)
             if self.dts_data is not None:
@@ -123,9 +133,10 @@ class CableSection():
         #TODO check that this doesn't wipe out the fiber dist ref points
         self.data.fiber_dist = self.data.cable_dist*m+b
 
-    def plot_w_mpl(self):
-        f = pyplot.figure()
-        ax = Axes3D(f)
+    def plot_w_mpl(self, ax=None):
+        if not ax:
+            f = pyplot.figure()
+            ax = Axes3D(f)
         ax.plot(self.data.x.values, self.data.y.values, self.data.z.values)
         dr = self.get_distrefs()
         ax.plot(dr.x.values, dr.y.values, dr.z.values, 'r.')
@@ -158,7 +169,7 @@ class CableSection():
     def get_distrefs(self):
         return self.data[self.data.is_distref==True]
     
-    def interp_dists(self):
+    def interp_dists(self, coord_cbl_m=None):
         '''
         Add a cable distance for each polyline point, interpolated from the reference distances        
         TODO: solution for data that's not between two reference sections
@@ -169,9 +180,10 @@ class CableSection():
             spl = InterpolatedUnivariateSpline(distrefs.index.values, distrefs.cable_dist.values, k=1)
             self.data.cable_dist = spl(self.data.index.values)
         else:
-            #There's only one distance reference point for this section, so we correct offset but not slope
+            #There's only one distance reference point for this section, so we correct offset based on data
+            #and slope based on the ratio of the spatial coordinates (meters, if UTM) and cable (usually feet)
             offset = distrefs.cable_dist.values[0] - distrefs.index.values[0]
-            self.data.cable_dist = self.data.index.values + offset
+            self.data.cable_dist = self.data.index.values*coord_cbl_m + offset
 
 def interpolate_temperatures(cable_section, grid_step):
     from pykrige.k3d import Krige3D
