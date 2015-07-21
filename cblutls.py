@@ -56,7 +56,7 @@ class Cable():
     Polyline files should end in .txt, and distance reference files should end in .dtr.
     See cblutls.CableSection class for details of file formats.
     '''
-    def __init__(self, polyline_dirpath, **kwargs):
+    def __init__(self, polyline_dirpath, dts_data_dirpath=None, **kwargs):
         self.sections=[]
         for polyline_filepath in glob2.glob(polyline_dirpath + '*.txt'):
             self.sections.append(CableSection(
@@ -74,7 +74,16 @@ class Cable():
     def plot_w_mayavi(self):
         for section in self.sections:
             section.plot_w_mayavi(colorbar=False)
-        mlab.colorbar()        
+        mlab.colorbar()
+    
+    def get_dts_data(self):
+        '''
+        Combines the dts data from all the cable sections into one dataframe
+        '''
+        dd = self.sections[0].dts_data
+        for section in self.sections[1:]:
+            dd = dd.combine_first(section.dts_data)
+        return dd
 
 class CableSection():
     '''
