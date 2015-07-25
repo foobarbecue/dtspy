@@ -146,7 +146,7 @@ class CableSection():
         #TODO check that this doesn't wipe out the fiber dist ref points
         self.data.fiber_dist = self.data.cable_dist*m+b
 
-    def plot_w_mpl(self, ax=None):
+    def plot_w_mpl(self, ax=None, cbl_dst_lbls=False):
         if not ax:
             f = pyplot.figure()
             ax = Axes3D(f)
@@ -168,6 +168,14 @@ class CableSection():
             s=160,
             edgecolors='face',
             c=pyplot.cm.jet(time_averaged_dts_normalized))
+        if cbl_dst_lbls:
+            for idx, row in dtsnn.iterrows():    
+                ax.text(
+                    row.x,
+                    row.y,
+                    row.z,
+                    idx
+                )
         pyplot.show()
 
     def plot_w_mayavi(self, colorbar=True):
@@ -186,7 +194,6 @@ class CableSection():
     def interp_dists(self, coord_cbl_m=None):
         '''
         Add a cable distance for each polyline point, interpolated from the reference distances        
-        TODO: solution for data that's not between two reference sections
         '''
         distrefs = self.get_distrefs()
         if len(distrefs) > 1:
@@ -196,8 +203,8 @@ class CableSection():
         else:
             #There's only one distance reference point for this section, so we correct offset based on data
             #and slope based on the ratio of the spatial coordinates (meters, if UTM) and cable (usually feet)
-            offset = distrefs.cable_dist.values[0] - distrefs.index.values[0]
-            self.data.cable_dist = self.data.index.values*coord_cbl_m + offset
+            offset = distrefs.cable_dist.values[0] - distrefs.index.values[0] * coord_cbl_m
+            self.data.cable_dist = self.data.index.values * coord_cbl_m + offset
 
 def interpolate_temperatures(cable_section, grid_step):
     from pykrige.k3d import Krige3D
