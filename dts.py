@@ -72,6 +72,7 @@ def plot_dts(dts_dataframe, min_dist=None, max_dist=None, min_time=None, max_tim
     #For some reason an extra tick is created beyond the end of the data. Remove it using [:-1].
     xlocs, xlabels = xlocs[:-1], xlabels[:-1]
     xdates = pltdata.iloc[0,xlocs].index
+    xdates = [ts.strftime('%Y-%m-%d %H:%M') for ts in xdates]
     ylocs, ylabels = pyplot.yticks()
     ylocs, ylabels = ylocs[:-1], ylabels[:-1]
     ydists = pltdata.iloc[ylocs,0].index
